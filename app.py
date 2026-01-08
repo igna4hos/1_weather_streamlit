@@ -25,7 +25,7 @@ condition = st.sidebar.radio(
 	]
 )
 
-df = None
+df = st.session_state.get("file_create")
 
 if condition == "Загрузите файл":
 	file = st.sidebar.file_uploader("temperature_data.csv", type=["csv"])
@@ -40,6 +40,13 @@ else:
 		st.sidebar.success("Файл с погодой готов к анализу")
 
 	df = st.session_state.get("file_create")
+
+if df is None:
+	st.info(
+		"Выберите источник данных в боковом меню,"
+		"чтобы начать анализ температур"
+	)
+	st.stop()
 
 st.sidebar.header("OpenWeatherMap API")
 
@@ -191,17 +198,28 @@ if api_key:
 else:
     st.sidebar.info("Введите и отправьте API ключ")
 
-weather = get_current_temperature_sync(city, api_key)
+current_temp = None
 
-if weather.get("cod") == 401:
-	st.error(weather["message"])
-elif weather.get("cod") != 200:
-	st.error("Ошибка при получении данных о погоде")
+if api_key:
+    weather = get_current_temperature_sync(city, api_key)
+
+    if weather.get("cod") == 401:
+        st.warning("Неверный API ключ. Проверьте корректность ключа.")
+    elif weather.get("cod") != 200:
+        st.warning("Не удалось получить данные о погоде.")
+    else:
+        current_temp = weather["main"]["temp"]
+        st.subheader("Текущая температура")
+        st.metric("Температура сейчас", f"{current_temp} °C")
 else:
-	current_temp = weather["main"]["temp"]
-	st.subheader("Текущая температура")
-	st.metric("Температура сейчас", f"{current_temp} °C")
+    st.warning("Введите API ключ, чтобы получить текущую температуру.")
 	
+if current_temp is None:
+    st.info(
+        "Текущая температура недоступна."
+        "Сравнение с нормой сезона не выполнено."
+    )
+    st.stop()
 
 current_month = datetime.now().month
 current_season = month_to_season[current_month]
